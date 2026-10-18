@@ -149,4 +149,9 @@ enum ReturnTypes {
 #define ATTRCAT_ATTR_ROOT_BLOCK "RootBlock"
 #define ATTRCAT_ATTR_OFFSET "Offset"
 
+
+//for question 2 of stage 10 modification
+extern long long comparisonCount;
+
+
 #endif  // NITCBASE_CONSTANTS_H

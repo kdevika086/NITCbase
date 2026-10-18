@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+//for stage 10 question 2 modification
+long long comparisonCount = 0;
 
 RecId BlockAccess::linearSearch(int relId, char attrName[ATTR_SIZE], union Attribute attrVal, int op) 
 {
@@ -95,7 +97,9 @@ RecId BlockAccess::linearSearch(int relId, char attrName[ATTR_SIZE], union Attri
     }
 
 		Attribute recordAttr = record[attrCatEntry.offset];
-    int cmpVal = compareAttrs(recordAttr, attrVal, attrCatEntry.attrType);
+		
+		comparisonCount++;
+		int cmpVal = compareAttrs(recordAttr, attrVal, attrCatEntry.attrType);
 
 		/* Next task is to check whether this record satisfies the given condition.
 		It is determined based on the output of previous comparison and
@@ -530,30 +534,6 @@ int BlockAccess::insert(int relId, Attribute *record)
 
 
 
-
-int BlockAccess::search(int relId, Attribute *record, char attrName[ATTR_SIZE], Attribute attrVal, int op) 
-{
-	// Declare a variable called recid to store the searched record
-	RecId recId= linearSearch(relId, attrName, attrVal, op);
-
-	// No matching record found
-	if (recId.block == -1 && recId.slot == -1)
-	{
-		return E_NOTFOUND;
-	}
-
-	RecBuffer recBuffer(recId.block);
-  int ret = recBuffer.getRecord(record, recId.slot);
-	if (ret != SUCCESS)
-	{
-		return ret;
-	}
-
-	return SUCCESS;
-}
-
-
-
 int BlockAccess::deleteRelation(char relName[ATTR_SIZE]) 
 {
 	if (strcmp(relName, RELCAT_RELNAME) == 0 ||
@@ -828,8 +808,6 @@ int BlockAccess::deleteRelation(char relName[ATTR_SIZE])
 
 
 
-
-
 int BlockAccess::project(int relId, Attribute *record) 
 {
 	RecId prevRecId;
@@ -893,6 +871,50 @@ int BlockAccess::project(int relId, Attribute *record)
 
 	RecBuffer recBuffer(nextRecId.block);
   recBuffer.getRecord(record, nextRecId.slot);
+
+	return SUCCESS;
+}
+
+
+
+int BlockAccess::search(int relId, Attribute *record, char attrName[ATTR_SIZE], Attribute attrVal, int op) 
+{
+	// Declare a variable called recid to store the searched record
+	RecId recId;
+	AttrCatEntry attrCatEntry;
+	int ret = AttrCacheTable::getAttrCatEntry(relId, attrName, &attrCatEntry);
+  if (ret != SUCCESS) 
+	{
+    return ret;
+  }
+
+	// If index does not exist for the attribute
+  if (attrCatEntry.rootBlock == -1) 
+	{
+    // Perform linear search
+    recId = linearSearch(relId, attrName, attrVal, op);
+  }
+
+	else 
+	{
+		// if index exists then perform B+ tree search
+    recId = BPlusTree::bPlusSearch(relId, attrName, attrVal, op);
+	}
+
+
+	// No record satisfying the condition was found
+  if (recId.block == -1 && recId.slot == -1) 
+	{
+    return E_NOTFOUND;
+  }
+
+	// Fetch the actual record using its record ID
+  RecBuffer recBuffer(recId.block);
+  ret = recBuffer.getRecord(record, recId.slot);
+  if (ret != SUCCESS) 
+	{
+    return ret;
+  }
 
 	return SUCCESS;
 }
