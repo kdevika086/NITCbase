@@ -3,6 +3,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
+#include <iostream>
 
 bool isNumber(char *str);
 
@@ -23,7 +24,7 @@ int Algebra::select(char srcRel[ATTR_SIZE], char targetRel[ATTR_SIZE], char attr
     return E_ATTRNOTEXIST;
   }
 
-   /*** Convert strVal to an attribute of data type NUMBER or STRING ***/
+  /*** Convert strVal to an attribute of data type NUMBER or STRING ***/
   int type = attrCatEntry.attrType;
   Attribute attrVal;
   if (type == NUMBER) 
@@ -82,6 +83,10 @@ int Algebra::select(char srcRel[ATTR_SIZE], char targetRel[ATTR_SIZE], char attr
   Attribute record[src_nAttrs];
 
   RelCacheTable::resetSearchIndex(srcRelId);
+  AttrCacheTable::resetSearchIndex(srcRelId, attr);
+
+  //for stage 10 modification
+  comparisonCount = 0;
 
   while (BlockAccess::search(srcRelId, record, attr, attrVal, op) == SUCCESS)
   {
@@ -93,13 +98,16 @@ int Algebra::select(char srcRel[ATTR_SIZE], char targetRel[ATTR_SIZE], char attr
       return ret;
     }
   }
+  std::cout << "Number of comparisons: " << comparisonCount << std::endl;
+
   Schema::closeRel(targetRel);
   return SUCCESS;
 }
 
 
 
-bool isNumber(char *str) {
+bool isNumber(char *str) 
+{
   int len;
   float ignore;
   /*

@@ -27,7 +27,10 @@ StaticBuffer::StaticBuffer()
   }
 }
 
-StaticBuffer::~StaticBuffer() {
+
+
+StaticBuffer::~StaticBuffer() 
+{
   // copy blockAllocMap blocks from buffer to disk(using writeblock() of disk)
   for (int i = 0; i < 4; i++) 
   {
@@ -44,6 +47,7 @@ StaticBuffer::~StaticBuffer() {
     }
   }
 }
+
 
 
 int StaticBuffer::getFreeBuffer(int blockNum) 
@@ -105,9 +109,8 @@ int StaticBuffer::getFreeBuffer(int blockNum)
   return bufferNum;
 }
 
-/* Get the buffer index where a particular block is stored
-   or E_BLOCKNOTINBUFFER otherwise
-*/
+
+
 int StaticBuffer::getBufferNum(int blockNum) 
 {
 	//check if blockNum is valid
@@ -130,6 +133,7 @@ int StaticBuffer::getBufferNum(int blockNum)
 }
 
 
+
 int StaticBuffer::setDirtyBit(int blockNum)
 {
   // find the buffer corresponding to blockNum
@@ -147,4 +151,14 @@ int StaticBuffer::setDirtyBit(int blockNum)
   // mark the buffer as dirty
   metainfo[bufferNum].dirty = true;
   return SUCCESS;
+}
+
+
+int StaticBuffer::getStaticBlockType(int blockNum)
+{
+  if(blockNum <= 0 || blockNum >= DISK_BLOCKS)
+  {
+    return E_OUTOFBOUND;
+  }
+  return (int)blockAllocMap[blockNum];
 }
