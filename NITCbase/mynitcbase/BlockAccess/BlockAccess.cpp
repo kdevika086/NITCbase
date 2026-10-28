@@ -1,5 +1,5 @@
 #include "BlockAccess.h"
-
+#include <cstdio>
 #include <cstring>
 
 //for stage 10 question 2 modification
@@ -529,7 +529,36 @@ int BlockAccess::insert(int relId, Attribute *record)
 		return ret;
 	}
 
-	return SUCCESS;
+	/* B+ Tree Insertions */
+	int flag = SUCCESS;
+
+	for (int attrOffset = 0; attrOffset < numOfAttributes; attrOffset++)
+	{
+		AttrCatEntry attrCatEntry;
+
+		ret = AttrCacheTable::getAttrCatEntry(
+			relId, attrOffset, &attrCatEntry);
+
+		if (ret != SUCCESS)
+			return ret;
+
+		if (attrCatEntry.rootBlock != -1)
+		{
+			int retVal = BPlusTree::bPlusInsert(
+				relId, attrCatEntry.attrName,
+				record[attrOffset], rec_id);
+
+			if (retVal == E_DISKFULL)
+				flag = E_INDEX_BLOCKS_RELEASED;
+			else if (retVal != SUCCESS)
+			{
+				printf("DEBUG: BPlusTree::bPlusInsert returned %d\n", retVal);
+				return retVal;
+			}
+		}
+	}
+
+	return flag;
 }
 
 
@@ -727,7 +756,9 @@ int BlockAccess::deleteRelation(char relName[ATTR_SIZE])
 
 		if (rootBlock != -1) 
 		{
-			// delete the bplus tree rooted at rootBlock using BPlusTree::bPlusDestroy()
+			ret = BPlusTree::bPlusDestroy(rootBlock);
+			if (ret != SUCCESS)
+				return ret;
 		}
 	}
 
