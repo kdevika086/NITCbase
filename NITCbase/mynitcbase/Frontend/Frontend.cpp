@@ -97,7 +97,13 @@ int Frontend::select_from_join_where(char relname_source_one[ATTR_SIZE], char re
                                      char relname_target[ATTR_SIZE],
                                      char join_attr_one[ATTR_SIZE], char join_attr_two[ATTR_SIZE]) {
   // Algebra::join
-  return SUCCESS;
+  return Algebra::join(
+    relname_source_one,
+    relname_source_two,
+    relname_target,
+    join_attr_one,
+    join_attr_two
+  );
 }
 
 int Frontend::select_attrlist_from_join_where(char relname_source_one[ATTR_SIZE], char relname_source_two[ATTR_SIZE],
@@ -105,7 +111,42 @@ int Frontend::select_attrlist_from_join_where(char relname_source_one[ATTR_SIZE]
                                               char join_attr_one[ATTR_SIZE], char join_attr_two[ATTR_SIZE],
                                               int attr_count, char attr_list[][ATTR_SIZE]) {
   // Algebra::join + project
-  return SUCCESS;
+  char tempRel[ATTR_SIZE] = "TEMP";
+
+  // Create the temporary relation by joining the source relations.
+  int ret = Algebra::join(
+    relname_source_one,
+    relname_source_two,
+    tempRel,
+    join_attr_one,
+    join_attr_two
+  );
+
+  if (ret != SUCCESS)
+    return ret;
+
+  // Open the temporary relation.
+  int tempRelId = OpenRelTable::openRel(tempRel);
+
+  if (tempRelId < 0)
+  {
+    Schema::deleteRel(tempRel);
+    return tempRelId;
+  }
+
+  // Project the requested attributes into the target relation.
+  ret = Algebra::project(
+    tempRel,
+    relname_target,
+    attr_count,
+    attr_list
+  );
+
+  // Close and delete the temporary relation.
+  OpenRelTable::closeRel(tempRelId);
+  Schema::deleteRel(tempRel);
+
+  return ret;
 }
 
 int Frontend::custom_function(int argc, char argv[][ATTR_SIZE]) {
