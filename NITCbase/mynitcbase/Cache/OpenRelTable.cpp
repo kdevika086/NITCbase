@@ -59,7 +59,8 @@ OpenRelTable::OpenRelTable()
 	{
 		attrCatBlock.getRecord(attrCatRecord, i);
 		AttrCacheEntry* entry =(AttrCacheEntry*)malloc(sizeof(AttrCacheEntry));
-		AttrCacheTable::recordToAttrCatEntry(attrCatRecord, &entry->attrCatEntry);
+		entry->dirty = false;
+    AttrCacheTable::recordToAttrCatEntry(attrCatRecord, &entry->attrCatEntry);
 		entry->recId.block = ATTRCAT_BLOCK;
 		entry->recId.slot = i;
 		entry->next = nullptr;
@@ -81,7 +82,8 @@ OpenRelTable::OpenRelTable()
 	{
 		attrCatBlock.getRecord(attrCatRecord, i);
 		AttrCacheEntry* entry = (AttrCacheEntry*)malloc(sizeof(AttrCacheEntry));
-		AttrCacheTable::recordToAttrCatEntry(attrCatRecord, &entry->attrCatEntry);
+		entry->dirty = false;
+    AttrCacheTable::recordToAttrCatEntry(attrCatRecord, &entry->attrCatEntry);
 
 		entry->recId.block = ATTRCAT_BLOCK;
 		entry->recId.slot = i;
@@ -110,6 +112,7 @@ OpenRelTable::OpenRelTable()
 	strcpy(tableMetaInfo[ATTRCAT_RELID].relName, "ATTRIBUTECAT");
 
 }
+
 
 
 OpenRelTable::~OpenRelTable()
@@ -182,6 +185,7 @@ OpenRelTable::~OpenRelTable()
 }
 
 
+
 int OpenRelTable::getFreeOpenRelTableEntry() 
 {
 	for (int i = 0; i < MAX_OPEN; i++) 
@@ -193,6 +197,7 @@ int OpenRelTable::getFreeOpenRelTableEntry()
 	}
 	return E_CACHEFULL;
 }
+
 
 
 int OpenRelTable::getRelId(char relName[ATTR_SIZE]) 
@@ -207,6 +212,7 @@ int OpenRelTable::getRelId(char relName[ATTR_SIZE])
 
 	return E_RELNOTOPEN;
 }
+
 
 
 int OpenRelTable::openRel(char relName[ATTR_SIZE]) 
@@ -298,7 +304,7 @@ int OpenRelTable::openRel(char relName[ATTR_SIZE])
 
 		// create a new Attribute Cache entry
 		AttrCacheEntry* entry = (AttrCacheEntry*)malloc(sizeof(AttrCacheEntry));
-
+    entry->dirty = false;
 		AttrCacheTable::recordToAttrCatEntry(attrCatRecord,&entry->attrCatEntry);
 
 		entry->recId = attrcatRecId;
@@ -324,6 +330,7 @@ int OpenRelTable::openRel(char relName[ATTR_SIZE])
 
   return relId;
 }
+
 
 
 int OpenRelTable::closeRel(int relId) 
@@ -371,13 +378,26 @@ int OpenRelTable::closeRel(int relId)
 	AttrCacheEntry* current = AttrCacheTable::attrCache[relId];
   while (current != nullptr)
   {
+    if (current->dirty)
+    {
+      Attribute attrCatRecord[ATTRCAT_NO_ATTRS];
+
+      AttrCacheTable::attrCatEntryToRecord(&current->attrCatEntry, attrCatRecord);
+
+      RecId recId = current->recId;
+      RecBuffer attrCatBlock(recId.block);
+
+      int ret = attrCatBlock.setRecord(attrCatRecord, recId.slot);
+      if (ret != SUCCESS)
+      {
+        return ret;
+      }
+    }
     AttrCacheEntry* next = current->next;
     free(current);
     current = next;
   }
-  // (because we are not modifying the attribute cache at this stage,
-  // write-back is not required. We will do it in subsequent
-  // stages when it becomes needed)
+  
   free(RelCacheTable::relCache[relId]);
 	
   /****** Set the Open Relation Table entry of the relation as free ******/

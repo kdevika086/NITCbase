@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
 
 // constructor 1
 BlockBuffer::BlockBuffer(char blockType)
@@ -183,7 +184,6 @@ int BlockBuffer::loadBlockAndGetBufferPtr(unsigned char **buffPtr)
 
 
 
-
 int RecBuffer::getSlotMap(unsigned char *slotMap) 
 {
   unsigned char *bufferPtr;
@@ -298,7 +298,7 @@ int BlockBuffer::getFreeBlock(int blockType)
 {
   int freeBlock=-1;
   // find a free buffer using StaticBuffer::getFreeBuffer() .
-  for(int blockNum = 0; blockNum < DISK_BLOCKS; blockNum++)
+  for(int blockNum = 4; blockNum < DISK_BLOCKS; blockNum++)
   {
     if(StaticBuffer::blockAllocMap[blockNum] == UNUSED_BLK)
     {
@@ -495,23 +495,75 @@ int IndLeaf::getEntry(void *ptr, int indexNum)
     return ret;
   }
   unsigned char *entryPtr = bufferPtr + HEADER_SIZE + (indexNum * LEAF_ENTRY_SIZE);
-  memcpy((struct Index *)ptr, entryPtr, LEAF_ENTRY_SIZE);
+  struct Index *index = (struct Index *)ptr;
+
+  memcpy(&(index->attrVal), entryPtr, sizeof(Attribute));
+  memcpy(&(index->block), entryPtr + ATTR_SIZE, sizeof(int32_t));
+  memcpy(&(index->slot), entryPtr + ATTR_SIZE + sizeof(int32_t), sizeof(int32_t));
 
   return SUCCESS;
 }
 
 
-//empty definition
+
 int IndInternal::setEntry(void *ptr, int indexNum) 
 {
-  return 0;
+  if (indexNum < 0 || indexNum >= MAX_KEYS_INTERNAL)
+  {
+    return E_OUTOFBOUND;
+  }
+
+  unsigned char *bufferPtr;
+  int ret = loadBlockAndGetBufferPtr(&bufferPtr);
+  if (ret != SUCCESS)
+  {
+    return ret;
+  }
+
+  struct InternalEntry *internalEntry = (struct InternalEntry *)ptr;
+  unsigned char *entryPtr = bufferPtr + HEADER_SIZE + (indexNum * 20);
+
+  memcpy(entryPtr, &(internalEntry->lChild), sizeof(int32_t));
+  memcpy(entryPtr + 4, &(internalEntry->attrVal), ATTR_SIZE);
+  memcpy(entryPtr + 20, &(internalEntry->rChild), sizeof(int32_t));
+
+  ret = StaticBuffer::setDirtyBit(blockNum);
+  if (ret != SUCCESS)
+  {
+    return ret;
+  }
+  return SUCCESS;
 }
 
 
-//empty definition
+
 int IndLeaf::setEntry(void *ptr, int indexNum) 
 {
-  return 0;
+  if (indexNum < 0 || indexNum >= MAX_KEYS_LEAF)
+  {
+    return E_OUTOFBOUND;
+  }
+
+  unsigned char *bufferPtr;
+  int ret = loadBlockAndGetBufferPtr(&bufferPtr);
+  if (ret != SUCCESS)
+  {
+    return ret;
+  }  
+  
+  unsigned char *entryPtr = bufferPtr + HEADER_SIZE + (indexNum * LEAF_ENTRY_SIZE);
+  struct Index *index = (struct Index *)ptr;
+
+  memcpy(entryPtr, &(index->attrVal), sizeof(Attribute));
+  memcpy(entryPtr + sizeof(Attribute), &(index->block), sizeof(int32_t));
+  memcpy(entryPtr + sizeof(Attribute) + sizeof(int32_t), &(index->slot), sizeof(int32_t));
+
+  ret = StaticBuffer::setDirtyBit(blockNum);
+  if (ret != SUCCESS)
+  {
+    return ret;
+  }
+  return SUCCESS;
 }
 
 
